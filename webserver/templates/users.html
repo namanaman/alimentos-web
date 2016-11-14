@@ -1,0 +1,48 @@
+<html>
+  <style>
+    body{
+      font-size: 15pt;
+      font-family: arial;
+    }
+    div {
+      padding: 10px;
+    }
+    td {
+      padding-left, padding-right: : 5px;
+    }
+    th {
+      text-align: left;
+    }
+  </style>
+
+
+<body>
+  <h1>All Users</h1>
+  <p><a href="/">Home</a></p>
+
+  <div>
+    <table>
+      <tr>
+        <th>Name</th>
+        <th>Username</th>
+      </tr>
+      {% for key,value in data[0].iteritems() %}
+      <tr>
+        <td>{{value}}</td>
+        <td>{{key}}</td>
+        {% if key not in data[1] %}
+          <form method="POST" action="/follow">
+            <input type='hidden' name='destination' value={{key}}>
+            <td><input type="submit" value="Follow" ></td>
+          </form>
+        {% else %}
+          <td> <i>following</i> </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</body>
+
+</html>

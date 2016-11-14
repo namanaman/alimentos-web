@@ -1,0 +1,87 @@
+<html>
+  <style>
+    body{
+      font-size: 15pt;
+      font-family: arial;
+    }
+    td {
+      padding-left, padding-right: : 15px;
+      text-align: center;
+    }
+    div {
+      padding: 20px;
+    }
+  </style>
+
+
+<body>
+  <h1>My Info</h1>
+  <p><a href="/">Home</a></p>
+  <h3>{{data[0]}}</h3>
+
+  <div>
+    <table>
+      <tr>
+        <th>Followers {{data[3]}}</th>
+      </tr>
+      {% for person in data[1] %}
+      <tr>
+        <td>{{person}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+    <br>
+    <table>
+      <tr>
+        <th>Following {{data[4]}}</th>
+      </tr>
+      {% for person in data[2] %}
+      <tr>
+        <td>{{person}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  <div>
+    <h4> My Ratings </h4>
+    <table>
+      <tr>
+        <th>Restaurant</th>
+        <th>Location</th>
+        <th>Rating</th>
+        <th>Comment</th>
+      </tr>
+      {% for key,value in data[6].iteritems() %}
+      <tr>
+        <td>{{value[0]}}</td>
+        <td>{{value[1]}}</td>
+        <td>{{value[2]}}</td>
+        <td>{{value[3]}}</td>
+      </tr>
+      <tr>
+        <td><img src={{value[5]}} style="width:100px;height:100px;"</td>
+        <td>{{value[4]}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div>
+    <h4> My Favorite Dishes </h4>
+    <table>
+      <tr>
+        <th>Restaurant</th>
+        <th>Dish</th>
+      </tr>
+      {% for value in data[5] %}
+      <tr>
+        <td>{{value[0]}}</td>
+        <td>{{value[1]}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</body>
+
+</html>

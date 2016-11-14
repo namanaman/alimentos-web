@@ -1,27 +1,27 @@
 <html>
   <style>
-    body{ 
+    body{
       font-size: 15pt;
       font-family: arial;
     }
+    td {
+      text-align: center;
+      padding-left, padding-right: : 10px;
+    }
   </style>
 
+<h1> ¡Alimentos! </h1>
+<p><a href="/restaurants"><b>Find Restaurants</b></a></p>
+<p><a href="/users"><b>Find Friends</b></a></p>
+<p><a href="/mydetails"><b>My Info</b></a></p>
 
-<body>
-  <h1>Some famous Computer Scientists</h1>
-  <div>{{data}}</div>
+{% if data %}
+  <h5><a href="/logout">Logout</a></h5>
+{% else %}
+  <h5><a href="/login">Login</a> or
+  <a href="/newuser">Register</a></h5>
+{% endif %}
 
-  <div>
-    {% for n in data %}
-    <div>{{n}}</div>
-    {% endfor %}
-  </div>
-
-<p><a href="/another">Go to the other page</a></p>
-
-<form method="POST" action="/add">
-<p>Name of new computer scientist: <input type="text" name="name"> <input type="submit" value="Add"></p>
-</form>
 
 </body>
 

@@ -1,0 +1,37 @@
+<html>
+  <style>
+    body{
+      font-size: 15pt;
+      font-family: arial;
+    }
+    td {
+      text-align: center;
+      padding-left, padding-right: : 10px;
+    }
+  </style>
+
+
+<body>
+  <h1>All Restaurants</h1>
+  <p><a href="/">Home</a></p>
+
+  <div>
+    <table>
+      <tr>
+        <th>Restaurant</th>
+        <th>Rating</th>
+        <th>Location</th>
+      </tr>
+      {% for key,value in data.iteritems() %}
+      <tr>
+        <td><a href={{key}}>{{value[0]}}</a></td>
+        <td>{{value[2]}}</td>
+        <td>{{value[1]}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</body>
+
+</html>

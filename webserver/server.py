@@ -1,8 +1,8 @@
 #!/usr/bin/env python2.7
 
 """
-Columbia W4111 Intro to databases
-Example webserver
+Columbia W4111 Project 1
+Alimentos - Restaurant Ratings App
 
 To run locally
 
@@ -18,66 +18,20 @@ Read about it online.
 import os
 from sqlalchemy import *
 from sqlalchemy.pool import NullPool
-from flask import Flask, request, render_template, g, redirect, Response
+from flask import Flask, request, render_template, g, redirect, Response, session
 
 tmpl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 app = Flask(__name__, template_folder=tmpl_dir)
 
-
-#
-# The following uses the postgresql test.db -- you can use this for debugging purposes
-# However for the project you will need to connect to your Part 2 database in order to use the
-# data
-#
-# XXX: The URI should be in the format of: 
-#
-#     postgresql://USER:PASSWORD@<IP_OF_POSTGRE_SQL_SERVER>/postgres
-#
-# For example, if you had username ewu2493, password foobar, then the following line would be:
-#
-#     DATABASEURI = "postgresql://ewu2493:foobar@<IP_OF_POSTGRE_SQL_SERVER>/postgres"
-#
-# Swap out the URI below with the URI for the database created in part 2
-DATABASEURI = "sqlite:///test.db"
-
-
-#
-# This line creates a database engine that knows how to connect to the URI above
-#
+# Creates database engine and connects to URI
+DATABASEURI = "postgresql://na2603:xs3d4@104.196.175.120/postgres"
 engine = create_engine(DATABASEURI)
-
-
-#
-# START SQLITE SETUP CODE
-#
-# after these statements run, you should see a file test.db in your webserver/ directory
-# this is a sqlite database that you can query like psql typing in the shell command line:
-# 
-#     sqlite3 test.db
-#
-# The following sqlite3 commands may be useful:
-# 
-#     .tables               -- will list the tables in the database
-#     .schema <tablename>   -- print CREATE TABLE statement for table
-# 
-# The setup code should be deleted once you switch to using the Part 2 postgresql database
-#
-engine.execute("""DROP TABLE IF EXISTS test;""")
-engine.execute("""CREATE TABLE IF NOT EXISTS test (
-  id serial,
-  name text
-);""")
-engine.execute("""INSERT INTO test(name) VALUES ('grace hopper'), ('alan turing'), ('ada lovelace');""")
-#
-# END SQLITE SETUP CODE
-#
-
 
 
 @app.before_request
 def before_request():
   """
-  This function is run at the beginning of every web request 
+  This function is run at the beginning of every web request
   (every time you enter an address in the web browser).
   We use it to setup a database connection that can be used throughout the request
 
@@ -89,6 +43,7 @@ def before_request():
     print "uh oh, problem connecting to database"
     import traceback; traceback.print_exc()
     g.conn = None
+
 
 @app.teardown_request
 def teardown_request(exception):
@@ -102,19 +57,6 @@ def teardown_request(exception):
     pass
 
 
-#
-# @app.route is a decorator around index() that means:
-#   run index() whenever the user tries to access the "/" path using a GET request
-#
-# If you wanted the user to go to e.g., localhost:8111/foobar/ with POST or GET then you could use
-#
-#       @app.route("/foobar/", methods=["POST", "GET"])
-#
-# PROTIP: (the trailing / in the path is important)
-# 
-# see for routing: http://flask.pocoo.org/docs/0.10/quickstart/#routing
-# see for decorators: http://simeonfranklin.com/blog/2012/jul/1/python-decorators-in-12-steps/
-#
 @app.route('/')
 def index():
   """
@@ -126,86 +68,202 @@ def index():
 
   See its API: http://flask.pocoo.org/docs/0.10/api/#incoming-request-data
   """
+  logged_in = False
+  if 'username' in session:
+      logged_in = True
 
   # DEBUG: this is debugging code to see what request looks like
-  print request.args
+  # print request.args
 
-
-  #
-  # example of a database query
-  #
-  cursor = g.conn.execute("SELECT name FROM test")
-  names = []
-  for result in cursor:
-    names.append(result['name'])  # can also be accessed using result[0]
-  cursor.close()
-
-  #
-  # Flask uses Jinja templates, which is an extension to HTML where you can
-  # pass data to a template and dynamically generate HTML based on the data
-  # (you can think of it as simple PHP)
-  # documentation: https://realpython.com/blog/python/primer-on-jinja-templating/
-  #
-  # You can see an example template in templates/index.html
-  #
-  # context are the variables that are passed to the template.
-  # for example, "data" key in the context variable defined below will be 
-  # accessible as a variable in index.html:
-  #
-  #     # will print: [u'grace hopper', u'alan turing', u'ada lovelace']
-  #     <div>{{data}}</div>
-  #     
-  #     # creates a <div> tag for each element in data
-  #     # will print: 
-  #     #
-  #     #   <div>grace hopper</div>
-  #     #   <div>alan turing</div>
-  #     #   <div>ada lovelace</div>
-  #     #
-  #     {% for n in data %}
-  #     <div>{{n}}</div>
-  #     {% endfor %}
-  #
-  context = dict(data = names)
-
-
-  #
-  # render_template looks in the templates/ folder for files.
-  # for example, the below file reads template/index.html
-  #
+  context = dict(data = logged_in)
   return render_template("index.html", **context)
 
-#
-# This is an example of a different path.  You can see it at
-# 
-#     localhost:8111/another
-#
-# notice that the functio name is another() rather than index()
-# the functions for each app.route needs to have different names
-#
-@app.route('/another')
-def another():
-  return render_template("anotherfile.html")
+
+@app.route('/restaurants/')
+def restaurants():
+   cursor = g.conn.execute("SELECT avg(stars),Restaurants.rid,name,city,state,address,postalCode from Ratings RIGHT OUTER JOIN Restaurants ON Ratings.rid=Restaurants.rid GROUP BY Restaurants.rid")
+   restaurants = {}
+   for result in cursor:
+     if result['avg'] != None:
+         avg= ("%.2f" % round(result['avg'],2))
+     else:
+         avg='None'
+     location = result['address'] + ', ' + result['city'] + ', ' + result['state'] + ' ' + str(result['postalcode'])
+     key = '/restaurants/' + str(result['rid'])
+     restaurants[key]=[result['name'], location, avg]
+   cursor.close()
+   context = dict(data = restaurants)
+   return render_template("restaurants.html", **context)
 
 
-# Example of adding new data to the database
-@app.route('/add', methods=['POST'])
+@app.route('/restaurants/<rid>/')
+def restaurantInfo(rid):
+    cmd = "SELECT Restaurants.rid, name, address, city, state, postalCode, category,avg(stars) from Ratings RIGHT OUTER JOIN Restaurants ON Ratings.rid=Restaurants.rid WHERE Restaurants.rid=:rid GROUP BY Restaurants.rid"
+    cursor=g.conn.execute(text(cmd), rid=rid);
+    for result in cursor:
+        if result['avg'] != None:
+            avg= ("%.2f" % round(result['avg'],2))
+        else:
+            avg='None'
+        location = result['address'] + ', ' + result['city'] + ', ' + result['state'] + ' ' + str(result['postalcode'])
+        restaurantInfo = [result['name'],location,result['category'],avg]
+    cursor.close()
+
+    cmd= "SELECT name,count(username) FROM favDishes WHERE rid=:rid GROUP BY name"
+    cursor=g.conn.execute(text(cmd), rid=rid);
+    favDishes={}
+    for result in cursor:
+        favDishes[result['name']]=result['count']
+    cursor.close()
+
+    cmd= "SELECT * from ratingPhotos RIGHT OUTER JOIN Ratings ON Ratings.raid=ratingPhotos.raid where rid=:rid"
+    cursor=g.conn.execute(text(cmd), rid=rid);
+    ratings=[]
+    for result in cursor:
+        ratings.append(result)
+    cursor.close()
+
+    context = dict(data = [restaurantInfo,favDishes,ratings])
+    return render_template("restaurantInfo.html", **context)
+
+
+@app.route('/users/')
+def users():
+    if 'username' in session:
+        cursor = g.conn.execute("SELECT firstName,lastName,username FROM Users")
+        users = {}
+        for result in cursor:
+          if (result["username"]!=session['username']):
+              users[result["username"]]=(result[0] + ' ' + result[1])
+        cursor.close()
+
+        cmd = "SELECT destination FROM Follows WHERE Follows.source=:username"
+        cursor = g.conn.execute(text(cmd), username=session['username'])
+        following = []
+        for result in cursor:
+            following.append(result['destination'])
+        cursor.close()
+
+        context = dict(data = [users, following])
+        return render_template("users.html", **context)
+    else:
+        return redirect('/login')
+
+
+@app.route('/follow/', methods=['POST'])
+def follow():
+    destination=request.form['destination']
+    cmd= "INSERT INTO Follows(source,destination) VALUES(:username, :destination)"
+    g.conn.execute(text(cmd), username=session['username'], destination=destination)
+    return redirect('/users')
+
+
+@app.route('/mydetails/')
+def mydetails():
+  if 'username' in session:
+      username = session['username']
+      cmd = "SELECT firstName,lastName from Users WHERE Users.username=:username"
+      cursor = g.conn.execute(text(cmd), username=username)
+      result = cursor.fetchone()
+      name = result[0] + " " + result[1]
+      cursor.close()
+
+      cmd = "SELECT source FROM Follows WHERE destination=:username"
+      cursor = g.conn.execute(text(cmd), username=username);
+      followers=[]
+      for result in cursor:
+          followers.append(result["source"])
+      cursor.close()
+
+      cmd = "SELECT destination FROM Follows WHERE source=:username"
+      cursor = g.conn.execute(text(cmd), username=username);
+      following=[]
+      for result in cursor:
+          following.append(result["destination"])
+      cursor.close()
+
+      cmd = "SELECT Ratings.raid, name, address, city, state, postalCode,stars,comment,caption,photoUrl from Ratings JOIN Restaurants ON Ratings.rid=Restaurants.rid LEFT OUTER JOIN ratingPhotos ON Ratings.raid=ratingPhotos.raid WHERE Ratings.username=:username"
+      cursor=g.conn.execute(text(cmd), username=session['username']);
+      ratings={}
+      for result in cursor:
+          location = result['address'] + ', ' + result['city'] + ', ' + result['state'] + ' ' + str(result['postalcode'])
+          ratings[result['raid']] = [result['name'],location,result['stars'],result['comment'],result['caption'],result['photourl']]
+      cursor.close()
+
+      cmd= "SELECT favDishes.name AS fname,Restaurants.name AS rname FROM favDishes,Restaurants WHERE favDishes.rid=Restaurants.rid AND username=:username"
+      cursor=g.conn.execute(text(cmd), username=session['username']);
+      favDishes=[]
+      for result in cursor:
+          favDishes.append([result['rname'],result['fname']])
+      cursor.close()
+
+      context = dict(data = [name,followers,following, len(followers), len(following), favDishes,ratings])
+      return render_template("mydetails.html", **context)
+  else:
+      return redirect('/login')
+
+# Example of inserting into database that needs to be fixed
+@app.route('/add/', methods=['POST'])
 def add():
+  restaurantCount = restaurantCount + 1
   name = request.form['name']
-  print name
-  cmd = 'INSERT INTO test(name) VALUES (:name1), (:name2)';
-  g.conn.execute(text(cmd), name1 = name, name2 = name);
+  lat = request.form['latitude']
+  lon = request.form['longitude']
+  cmd = 'INSERT INTO Restaurants(rid, name, rlocation) VALUES (:rid, :name, point(:lat,:lon))';
+  g.conn.execute(text(cmd),rid = restaurantCount, name = name, lat = latitude, lon = longitude);
   return redirect('/')
 
 
-@app.route('/login')
+@app.route('/login/', methods=['GET', 'POST'])
 def login():
-    abort(401)
-    this_is_never_executed()
+    if request.method == 'GET':
+        return render_template("login.html")
+    else:
+        username= request.form['username']
+        password= request.form['password']
+
+        cmd= "SELECT username,password FROM Users WHERE username=:username AND password=md5(:password)"
+        cursor=g.conn.execute(text(cmd), username=username, password=password);
+        if(cursor.fetchone()):
+            session['username'] = username
+            return redirect('/')
+        else:
+            return redirect('/login')
+
+
+@app.route('/logout/')
+def logout():
+    session.pop('username', None)
+    return redirect('/')
+
+
+@app.route('/newuser/', methods=['GET', 'POST'])
+def newuser():
+    if request.method == 'GET':
+        return render_template("newuser.html")
+    else:
+        newusername = request.form['username']
+        password = request.form['password']
+        firstName = request.form['firstname']
+        lastName = request.form['lastname']
+
+        cmd = "SELECT username FROM Users WHERE username=:newusername"
+        cursor = g.conn.execute(text(cmd), newusername=newusername)
+        matches = []
+        for result in cursor:
+            matches.append(result['username'])
+        cursor.close()
+        if len(matches)>0:
+            return redirect('/newuser')
+        else:
+            cmd= "INSERT INTO Users(username, password, firstname, lastname) VALUES(:username, md5(:password), :firstName, :lastName)"
+            cursor=g.conn.execute(text(cmd), username=username, password=password, firstName=firstName, lastName=lastName);
+            return redirect('/')
 
 
 if __name__ == "__main__":
   import click
+  app.secret_key = 'A0Zr98j/3yX R~XHH!jmN]LWX/,?RT'
 
   @click.command()
   @click.option('--debug', is_flag=True)

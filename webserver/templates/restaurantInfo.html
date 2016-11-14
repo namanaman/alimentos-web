@@ -1,0 +1,75 @@
+<html>
+  <style>
+    body{
+      font-size: 15pt;
+      font-family: arial;
+    }
+    td {
+      text-align: center;
+      padding-left, padding-right: : 2px;
+    }
+  </style>
+
+<body>
+  <h1>{{data[0][0]}}</h1>
+  <p><a href="/">Home</a></p>
+
+  <div>
+    <h4>Rating: {{data[0][3]}}/5</h4>
+    <h4>Category: {{data[0][2]}}</h4>
+    <h5>{{data[0][1]}}</h5>
+  </div>
+
+  {% if data[1] %}
+  <div>
+    <h4> Favorite Dishes </h4>
+    <table>
+      <tr>
+        <th>Dish</th>
+        <th>Votes</th>
+      </tr>
+      {% for key,value in data[1].iteritems() %}
+      <tr>
+        <td>{{key}}</td>
+        <td>{{value}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+  {% if data[2] %}
+  <div>
+    <h4> Reviews </h4>
+    <table>
+      <tr>
+        <th>User</th>
+        <th>Rating</th>
+        <th>Comment</th>
+      </tr>
+      {% for rating in data[2] %}
+      <tr>
+        <td>{{rating['username']}}</td>
+        <td>{{rating['stars']}}/5</td>
+        <td>{{rating['comment']}}</td>
+      </tr>
+      <tr>
+        <td><img src={{rating['photourl']}} style="width:100px;height:100px;"</td>
+        <td>{{rating['caption']}}</td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% endif %}
+
+<form method="POST" action="/add">
+<p>Rate a restaurant:
+  <input type="text" name="name">
+  <input type="number" step="any" name="latitude">
+  <input type="number" step="any" name="longitude">
+  <input type="submit" value="Rate!"></p>
+</form>
+
+</body>
+
+</html>
