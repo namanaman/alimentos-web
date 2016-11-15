@@ -106,7 +106,7 @@ def restaurantInfo(rid):
         else:
             avg='None'
         location = result['address'] + ', ' + result['city'] + ', ' + result['state'] + ' ' + str(result['postalcode'])
-        restaurantInfo = [result['name'],location,result['category'],avg]
+        restaurantInfo = [result['name'],location,result['category'],avg, result['rid']]
     cursor.close()
 
     cmd= "SELECT name,count(username) FROM favDishes WHERE rid=:rid GROUP BY name"
@@ -123,7 +123,11 @@ def restaurantInfo(rid):
         ratings.append(result)
     cursor.close()
 
-    context = dict(data = [restaurantInfo,favDishes,ratings])
+    logged_in = False
+    if 'username' in session:
+      logged_in = True
+
+    context = dict(data = [restaurantInfo,favDishes,ratings, logged_in])
     return render_template("restaurantInfo.html", **context)
 
 
@@ -147,7 +151,7 @@ def users():
         context = dict(data = [users, following])
         return render_template("users.html", **context)
     else:
-        return redirect('/login')
+        return redirect('/login/')
 
 
 @app.route('/follow/', methods=['POST'])
@@ -155,7 +159,7 @@ def follow():
     destination=request.form['destination']
     cmd= "INSERT INTO Follows(source,destination) VALUES(:username, :destination)"
     g.conn.execute(text(cmd), username=session['username'], destination=destination)
-    return redirect('/users')
+    return redirect('/users/')
 
 
 @app.route('/mydetails/')
@@ -200,18 +204,59 @@ def mydetails():
       context = dict(data = [name,followers,following, len(followers), len(following), favDishes,ratings])
       return render_template("mydetails.html", **context)
   else:
-      return redirect('/login')
+      return redirect('/login/')
 
-# Example of inserting into database that needs to be fixed
-@app.route('/add/', methods=['POST'])
-def add():
-  restaurantCount = restaurantCount + 1
-  name = request.form['name']
-  lat = request.form['latitude']
-  lon = request.form['longitude']
-  cmd = 'INSERT INTO Restaurants(rid, name, rlocation) VALUES (:rid, :name, point(:lat,:lon))';
-  g.conn.execute(text(cmd),rid = restaurantCount, name = name, lat = latitude, lon = longitude);
-  return redirect('/')
+
+@app.route('/rate/', methods=['POST'])
+def rate():
+  username = session['username']
+  comment = request.form['comment']
+  photourl = request.form['photourl']
+  stars = request.form['stars']
+  caption = request.form['caption']
+  rid = request.form['rid']
+  url='/restaurants/'+str(rid)
+  print url
+  print photourl
+  cursor=g.conn.execute('SELECT max(raid) FROM Ratings')
+  raid=cursor.fetchone()[0] + 1
+  print raid
+  cursor.close()
+  cursor=g.conn.execute('SELECT max(pid) FROM ratingPhotos')
+  pid=cursor.fetchone()[0] + 1
+  print pid
+  cursor.close()
+  cmd="DELETE FROM Ratings WHERE username=:username AND rid=:rid AND EXISTS (SELECT * FROM Ratings WHERE username=:username AND rid=:rid)"
+  g.conn.execute(text(cmd), username=username,rid=rid)
+  cmd = 'INSERT INTO Ratings(raid,stars, comment, username,rid) VALUES (:raid,:stars,:comment,:username,:rid)';
+  g.conn.execute(text(cmd), raid=raid, stars = stars, comment = comment, username = username, rid=rid);
+  if len(photourl)>0:
+    cmd = 'INSERT INTO ratingPhotos(pid,photoUrl,caption,raid) VALUES (:pid,:photourl,:caption,:raid)';
+    g.conn.execute(text(cmd), pid = pid, photourl = photourl, caption = caption, raid=raid);
+  return redirect(url)
+
+@app.route('/favoritedish/', methods=['POST'])
+def favoritedish():
+  username=session['username']
+  name = request.form['name'].title()
+  rid= request.form['rid']
+  print username
+  print name
+  print rid
+  url='/restaurants/'+str(rid)
+  cmd = "SELECT name FROM favDishes WHERE username=:username AND name=:name"
+  cursor = g.conn.execute(text(cmd), name=name, username=username)
+  matches = []
+  for result in cursor:
+      matches.append(result['name'])
+  cursor.close()
+  if len(matches)>0:
+      return redirect(url)
+  else:
+      cmd = 'INSERT INTO favDishes(rid, name,username) VALUES (:rid, :name,:username)'
+      g.conn.execute(text(cmd),rid = rid, name = name, username=username);
+      print url
+      return redirect(url)
 
 
 @app.route('/login/', methods=['GET', 'POST'])
@@ -219,16 +264,16 @@ def login():
     if request.method == 'GET':
         return render_template("login.html")
     else:
-        username= request.form['username']
-        password= request.form['password']
+        username = request.form['username'].lower()
+        password = request.form['password']
 
-        cmd= "SELECT username,password FROM Users WHERE username=:username AND password=md5(:password)"
-        cursor=g.conn.execute(text(cmd), username=username, password=password);
+        cmd = "SELECT username,password FROM Users WHERE username=:username AND password=md5(:password)"
+        cursor = g.conn.execute(text(cmd), username=username, password=password);
         if(cursor.fetchone()):
             session['username'] = username
             return redirect('/')
         else:
-            return redirect('/login')
+            return redirect('/login/')
 
 
 @app.route('/logout/')
@@ -242,10 +287,10 @@ def newuser():
     if request.method == 'GET':
         return render_template("newuser.html")
     else:
-        newusername = request.form['username']
+        newusername = request.form['username'].lower()
         password = request.form['password']
-        firstName = request.form['firstname']
-        lastName = request.form['lastname']
+        firstName = request.form['firstname'].title()
+        lastName = request.form['lastname'].title()
 
         cmd = "SELECT username FROM Users WHERE username=:newusername"
         cursor = g.conn.execute(text(cmd), newusername=newusername)
@@ -254,7 +299,7 @@ def newuser():
             matches.append(result['username'])
         cursor.close()
         if len(matches)>0:
-            return redirect('/newuser')
+            return redirect('/newuser/')
         else:
             cmd= "INSERT INTO Users(username, password, firstname, lastname) VALUES(:username, md5(:password), :firstName, :lastName)"
             cursor=g.conn.execute(text(cmd), username=username, password=password, firstName=firstName, lastName=lastName);

@@ -54,21 +54,36 @@
         <td>{{rating['comment']}}</td>
       </tr>
       <tr>
-        <td><img src={{rating['photourl']}} style="width:100px;height:100px;"</td>
-        <td>{{rating['caption']}}</td>
+        {% if rating['photoUrl'] %}
+          <td><img src={{rating['photourl']}} style="width:100px;height:100px;"</td>
+          <td>{{rating['caption']}}</td>
+        {% endif %}
       </tr>
       {% endfor %}
     </table>
   </div>
   {% endif %}
 
-<form method="POST" action="/add">
-<p>Rate a restaurant:
-  <input type="text" name="name">
-  <input type="number" step="any" name="latitude">
-  <input type="number" step="any" name="longitude">
+{% if data[3] %}
+
+<form method="POST" action="/rate/">
+<p>Rate a restaurant (1-5) -
+  Stars: <input type="number" step="1" max="5" min="0" name="stars" required>
+  Comment: <input type="text" name="comment">
+  Photo URL: <input type="url" name="photourl">
+  Caption: <input type="text" name="caption">
+  <input type='hidden' name='rid' value={{data[0][4]}}>
   <input type="submit" value="Rate!"></p>
 </form>
+
+  <form method="POST" action="/favoritedish/">
+  <p>Add a favorite dish:
+    <input type="text" name="name" required>
+    <input type='hidden' name='rid' value={{data[0][4]}}>
+    <input type="submit" value="Add"></p>
+  </form>
+
+{% endif %}
 
 </body>
 

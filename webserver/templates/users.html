@@ -31,7 +31,7 @@
         <td>{{value}}</td>
         <td>{{key}}</td>
         {% if key not in data[1] %}
-          <form method="POST" action="/follow">
+          <form method="POST" action="/follow/">
             <input type='hidden' name='destination' value={{key}}>
             <td><input type="submit" value="Follow" ></td>
           </form>

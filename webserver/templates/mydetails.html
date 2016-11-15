@@ -59,8 +59,10 @@
         <td>{{value[3]}}</td>
       </tr>
       <tr>
-        <td><img src={{value[5]}} style="width:100px;height:100px;"</td>
-        <td>{{value[4]}}</td>
+        {% if value[5] %}
+          <td><img src={{value[5]}} style="width:100px;height:100px;"</td>
+          <td>{{value[4]}}</td>
+        {% endif %}
       </tr>
       {% endfor %}
     </table>
