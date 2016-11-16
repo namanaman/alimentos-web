@@ -81,7 +81,7 @@ def index():
 
 @app.route('/restaurants/')
 def restaurants():
-   cursor = g.conn.execute("SELECT avg(stars),Restaurants.rid,name,city,state,address,postalCode from Ratings RIGHT OUTER JOIN Restaurants ON Ratings.rid=Restaurants.rid GROUP BY Restaurants.rid")
+   cursor = g.conn.execute("SELECT avg(stars),Restaurants.rid,name,city,state,address,postalCode FROM Ratings RIGHT OUTER JOIN Restaurants ON Ratings.rid=Restaurants.rid GROUP BY Restaurants.rid")
    restaurants = {}
    for result in cursor:
      if result['avg'] != None:
@@ -98,7 +98,7 @@ def restaurants():
 
 @app.route('/restaurants/<rid>/')
 def restaurantInfo(rid):
-    cmd = "SELECT Restaurants.rid, name, address, city, state, postalCode, category,avg(stars) from Ratings RIGHT OUTER JOIN Restaurants ON Ratings.rid=Restaurants.rid WHERE Restaurants.rid=:rid GROUP BY Restaurants.rid"
+    cmd = "SELECT Restaurants.rid, name, address, city, state, postalCode, category,avg(stars) FROM Ratings RIGHT OUTER JOIN Restaurants ON Ratings.rid=Restaurants.rid WHERE Restaurants.rid=:rid GROUP BY Restaurants.rid"
     cursor=g.conn.execute(text(cmd), rid=rid);
     for result in cursor:
         if result['avg'] != None:
@@ -109,6 +109,7 @@ def restaurantInfo(rid):
         restaurantInfo = [result['name'],location,result['category'],avg, result['rid']]
     cursor.close()
 
+    # All Ratings/Dishes
     cmd= "SELECT name,count(username) FROM favDishes WHERE rid=:rid GROUP BY name"
     cursor=g.conn.execute(text(cmd), rid=rid);
     favDishes={}
@@ -116,7 +117,7 @@ def restaurantInfo(rid):
         favDishes[result['name']]=result['count']
     cursor.close()
 
-    cmd= "SELECT * from ratingPhotos RIGHT OUTER JOIN Ratings ON Ratings.raid=ratingPhotos.raid where rid=:rid"
+    cmd= "SELECT * FROM ratingPhotos RIGHT OUTER JOIN Ratings ON Ratings.raid=ratingPhotos.raid WHERE rid=:rid"
     cursor=g.conn.execute(text(cmd), rid=rid);
     ratings=[]
     for result in cursor:
@@ -126,6 +127,25 @@ def restaurantInfo(rid):
     logged_in = False
     if 'username' in session:
       logged_in = True
+
+      username=session['username']
+        # Friends' Ratings/Dishes
+      cmd= "SELECT name,count(username) FROM favDishes WHERE rid=:rid AND username IN (SELECT destination FROM Follows WHERE source=:username) GROUP BY name"
+      cursor=g.conn.execute(text(cmd), rid=rid, username=username);
+      friendFavDishes={}
+      for result in cursor:
+          friendFavDishes[result['name']]=result['count']
+      cursor.close()
+
+      cmd= "SELECT * FROM ratingPhotos RIGHT OUTER JOIN Ratings ON Ratings.raid=ratingPhotos.raid WHERE rid=:rid AND  username IN (SELECT destination FROM Follows WHERE source=:username)"
+      cursor=g.conn.execute(text(cmd), rid=rid, username=username);
+      friendRatings=[]
+      for result in cursor:
+          friendRatings.append(result)
+      cursor.close()
+
+      context = dict(data = [restaurantInfo,favDishes,ratings, logged_in, friendFavDishes, friendRatings])
+      return render_template("restaurantInfo.html", **context)
 
     context = dict(data = [restaurantInfo,favDishes,ratings, logged_in])
     return render_template("restaurantInfo.html", **context)
@@ -216,16 +236,15 @@ def rate():
   caption = request.form['caption']
   rid = request.form['rid']
   url='/restaurants/'+str(rid)
-  print url
-  print photourl
+
   cursor=g.conn.execute('SELECT max(raid) FROM Ratings')
   raid=cursor.fetchone()[0] + 1
-  print raid
   cursor.close()
+
   cursor=g.conn.execute('SELECT max(pid) FROM ratingPhotos')
   pid=cursor.fetchone()[0] + 1
-  print pid
   cursor.close()
+
   cmd="DELETE FROM Ratings WHERE username=:username AND rid=:rid AND EXISTS (SELECT * FROM Ratings WHERE username=:username AND rid=:rid)"
   g.conn.execute(text(cmd), username=username,rid=rid)
   cmd = 'INSERT INTO Ratings(raid,stars, comment, username,rid) VALUES (:raid,:stars,:comment,:username,:rid)';
@@ -240,10 +259,8 @@ def favoritedish():
   username=session['username']
   name = request.form['name'].title()
   rid= request.form['rid']
-  print username
-  print name
-  print rid
   url='/restaurants/'+str(rid)
+
   cmd = "SELECT name FROM favDishes WHERE username=:username AND name=:name"
   cursor = g.conn.execute(text(cmd), name=name, username=username)
   matches = []
@@ -255,7 +272,6 @@ def favoritedish():
   else:
       cmd = 'INSERT INTO favDishes(rid, name,username) VALUES (:rid, :name,:username)'
       g.conn.execute(text(cmd),rid = rid, name = name, username=username);
-      print url
       return redirect(url)
 
 
@@ -298,11 +314,13 @@ def newuser():
         for result in cursor:
             matches.append(result['username'])
         cursor.close()
+
         if len(matches)>0:
             return redirect('/newuser/')
         else:
             cmd= "INSERT INTO Users(username, password, firstname, lastname) VALUES(:username, md5(:password), :firstName, :lastName)"
-            cursor=g.conn.execute(text(cmd), username=username, password=password, firstName=firstName, lastName=lastName);
+            cursor=g.conn.execute(text(cmd), username=newusername, password=password, firstName=firstName, lastName=lastName);
+            session['username'] = newusername
             return redirect('/')
 
 
